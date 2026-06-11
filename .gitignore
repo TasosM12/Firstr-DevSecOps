@@ -1,0 +1,13 @@
+# Compiled output
+out/
+*.class
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# Game save data
+*.ser
+
+# Exported results
+algoquest_results*.txt

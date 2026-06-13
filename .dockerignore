@@ -1,0 +1,8 @@
+out/
+.git
+.idea
+*.iml
+*.class
+*.ser
+algoquest_results*.txt
+README.md

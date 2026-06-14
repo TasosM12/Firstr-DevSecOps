@@ -1,0 +1,67 @@
+name: SBOM/SCA Scout
+
+on:
+  workflow_dispatch:
+    inputs:
+      docker_image:
+        description: 'The Docker image to scan'
+        required: true
+        default: 'ghcr.io/tasosm12/algoquest:latest'
+
+jobs:
+  scout:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      security-events: write   # needed to upload SARIF to the Security tab
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Docker Scout requires a (free) Docker Hub login
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Login to GHCR so we can pull our own image
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull the image to scan
+        run: docker pull ${{ github.event.inputs.docker_image }}
+
+      - name: Docker Scout scan
+        uses: docker/scout-action@v1
+        with:
+          command: cves,recommendations,sbom
+          image: ${{ github.event.inputs.docker_image }}
+          sarif-file: sca_scout.sarif
+          output: sbom_scout.spdx.json
+          format: spdx
+          exit-code: false   # do not fail the run when CVEs are found
+
+      - name: Upload SARIF as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sca_scout.sarif
+          path: sca_scout.sarif
+
+      - name: Upload SBOM as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom_scout.spdx.json
+          path: sbom_scout.spdx.json
+
+      # Sends the results to the repo Security tab (works on public repos)
+      - name: Upload SARIF to Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: sca_scout.sarif
+          category: Security/SCA
